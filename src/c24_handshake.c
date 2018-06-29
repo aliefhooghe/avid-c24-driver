@@ -43,7 +43,8 @@ int c24_surface_find(
 {
 	socklen_t recv_addr_len = sizeof(struct sockaddr_ll);
 	struct c24_frame recv_frame;
-	
+	int ret;
+
 	LOG_PRINT("Searching Digidesign c24 table .....\n");
 
 	while (1) {
@@ -63,18 +64,24 @@ int c24_surface_find(
 
 			if (ret == 0 && callback != NULL)
 				callback(surface->user_data);
+
+			break;
 		}
 		else if (recv_frame.header.frame_type == C24_FRAME_TYPE_REANNOUNCE) {
 			DEBUG_PRINT("Received ReAnnounce frame\n");
 			read_announce_frame(surface, &recv_frame);
-			return c24_surface_ping(surface, 1000000); // TODO mieux
+
+			ret = c24_surface_ping(surface, 1000000); // TODO mieux
+			break;
 		}
 	}
 
 	LOG_PRINT("Found Digidesign c24 table : \n\tversion = %s\n\thw_adress = ",
-			surface->version);
+	surface->version);
 	print_hw_address(surface->address.sll_addr);
 	LOG_PRINT("\n");
+
+	return ret;
 }
 
 int c24_surface_disconnect(

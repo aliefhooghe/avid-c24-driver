@@ -12,7 +12,7 @@
 #define ACKNOWLEDGMENT_TIMEOUT_USEC 750000
 #define MAXIMUM_BLOCK_COUNT_PER_FRAME 16
 #define MAXIMUM_VUMETER_MASK_UPDATE_PER_FRAME 16
-#define MAX_SEND_TRY_COUNT 4
+#define MAX_SEND_TRY_COUNT 3
 
 static int c24_acknowledged_send_frame(
 	struct c24_surface_t *surface,
@@ -39,9 +39,13 @@ static int c24_acknowledged_send_frame(
 			LOG_PRINT("Warning : Acknowledgment timeout reached\n");
 
 			if (try_count >= max_try_count) {
-				LOG_PRINT("Warning : c24 surface was lost, trying to reconect...\n");
+				LOG_PRINT("Warning : c24 surface was lost, trying to recconect...\n");
 				c24_surface_find(surface, surface->reconnection_callback);
 			}
+		
+			//	reset ack timeout
+			timeout.tv_sec = 0;
+			timeout.tv_usec = usec_ack_timeout;
 		}
 
 
