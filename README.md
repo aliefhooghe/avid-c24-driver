@@ -7,7 +7,6 @@ User space c library that can handle comunications with an avid c24 surface unde
 Create a build directorie and run from it 
 
 cmake <path to CMakeLists file direcory>
-
 make 
 
 
