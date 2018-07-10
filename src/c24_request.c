@@ -1,6 +1,7 @@
 #include "c24_request.h"
 
 #include <string.h>
+#include "c24_error.h"
 #include "log.h"
 
 static int add_slider_pos_request(
@@ -106,7 +107,7 @@ int c24_frame_add_request(
 
 		default:
 			DEBUG_PRINT("warning : Unknown abstract request type\n");
-			return -1;
+			return EINVAL;
 
 	}
 }

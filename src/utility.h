@@ -8,7 +8,6 @@
 
 #include "network.h"
 
-void print_hw_address(const uint8_t addr[]);
 int hw_adress_cmp(const uint8_t addr1[], const uint8_t addr2[]);
 
 #endif

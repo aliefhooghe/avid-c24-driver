@@ -1,6 +1,6 @@
 
 #include <stdlib.h>
-
+#include "c24_error.h"
 #include "network.h"
 #include "log.h"
 
@@ -9,7 +9,8 @@ int recvfrom_with_timeout(
 	void * const buffer,
 	const size_t len,
 	struct sockaddr_ll *addr,
-	struct timeval *timeout)
+	struct timeval *timeout,
+	size_t *size)
 {
 	socklen_t recv_addr_len = sizeof(struct sockaddr_ll);
 	fd_set sock_set;
@@ -19,13 +20,25 @@ int recvfrom_with_timeout(
 
 	const int ret = select(sock + 1, &sock_set, NULL, NULL, timeout);
 
-	if (ret <= 0)
+	if (ret < 0)
 	{     //  error or timeout
-		return ret;
+		return errno;
+	}
+	else if (ret == 0) {
+		return C24_TIMEOUT_REACHED;
 	}
 	else
 	{
-		return recvfrom(sock, buffer, len, 0, (struct sockaddr*) addr,
+		const size_t ret = 
+			 recvfrom(sock, buffer, len, 0, (struct sockaddr*) addr,
 				&recv_addr_len);
+		
+		if (ret < 0) {
+			return errno;
+		}
+		else {
+			*size = ret;
+			return SUCCESS;
+		}
 	}
 }
