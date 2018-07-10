@@ -1,5 +1,8 @@
 #include <string.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
 
 #include "log.h"
 #include "network.h"
@@ -45,10 +48,13 @@ int c24_surface_find(
 	struct c24_frame recv_frame;
 	int ret;
 
-	LOG_PRINT("Searching Digidesign c24 table .....\n");
+	/* non-blocking so we can return after a few retrys */
+	int flags = fcntl(surface->sock, F_GETFL, 0);
+	fcntl(surface->sock, F_SETFL, flags | O_NONBLOCK);
 
-	while (1) {
-		
+	int i = 0;
+	int found = 0;
+	while (i < 10) {
 		const int size = recvfrom(surface->sock, &recv_frame,
 				sizeof(struct c24_frame), 0,
 				(struct sockaddr*) &(surface->address), &recv_addr_len);
@@ -64,7 +70,7 @@ int c24_surface_find(
 
 			if (ret == 0 && callback != NULL)
 				callback(surface->user_data);
-
+			found = 1;
 			break;
 		}
 		else if (recv_frame.header.frame_type == C24_FRAME_TYPE_REANNOUNCE) {
@@ -72,8 +78,16 @@ int c24_surface_find(
 			read_announce_frame(surface, &recv_frame);
 
 			ret = c24_surface_ping(surface, 1000000); // TODO mieux
+			found = 1;
 			break;
 		}
+		usleep(10 * 1000);
+		i++;
+	}
+
+	if(!found) {
+		LOG_PRINT("Did NOT find Digidesign c24 table\n");
+		return -ENODEV;
 	}
 
 	LOG_PRINT("Found Digidesign c24 table : \n\tversion = %s\n\thw_adress = ",

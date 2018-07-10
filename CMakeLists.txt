@@ -4,6 +4,10 @@ cmake_minimum_required (VERSION 3.1)
 project(digidesign_c24_driver LANGUAGES C)
 
 set(C24_DRIVER_SRC
+  src/c24_controls.h
+  src/c24_controls.c
+  src/c24_error.c
+	src/c24_error.h
 	src/c24_frame.c
 	src/c24_frame.h
 	src/c24_handshake.c
@@ -32,3 +36,4 @@ target_include_directories(c24_driver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_executable(exemple src/exemple.c)
 target_link_libraries(exemple c24_driver pthread m) # m = math is only needed because of the sin function
+
