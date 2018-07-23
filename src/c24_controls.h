@@ -16,6 +16,7 @@ const char *c24_surface_get_button_name(const uint16_t button);
 const char *c24_surface_get_knob_name(const uint16_t knob);
 
 int c24_button_is_slider(const uint16_t button);
+int c24_button_has_led(const uint16_t button);
 
 uint8_t c24_button_track(const uint16_t button);
 uint16_t c24_button_slider(const uint8_t track_id);

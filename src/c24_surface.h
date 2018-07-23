@@ -69,7 +69,7 @@ int c24_surface_display_float(
 
 int c24_surface_set_knob_led_mask(
 	struct c24_surface_t *surface,
-	const uint8_t track_id,
+	const uint16_t knob,
 	const uint16_t mask);
 
 int c24_surface_set_button_led_state(

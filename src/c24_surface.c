@@ -276,13 +276,17 @@ int c24_surface_display_float(
 
 int c24_surface_set_knob_led_mask(
 	struct c24_surface_t *surface,
-	const uint8_t track_id,
+	const uint16_t knob,
 	const uint16_t mask)
 {
+	//	Only Pan Knobs Haves 
+	if (!c24_knob_is_pan_knob(knob))
+		return -1;
+
 	struct c24_request req;
 
 	req.type = KNOB_LED_MASK_REQUEST;
-	req.knob_led_mask_request.track_id = track_id;
+	req.knob_led_mask_request.track_id = c24_knob_track(knob);
 	req.knob_led_mask_request.mask = mask;
 
 	return c24_surface_request_enqueue(surface, &req);
@@ -293,6 +297,9 @@ int c24_surface_set_button_led_state(
 	const uint16_t button,
 	const uint8_t state)
 {
+	if (!c24_button_has_led(button))
+		return -1;
+		
 	struct c24_request req;
 
 	req.type = BUTTON_LED_REQUEST;

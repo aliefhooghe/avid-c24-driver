@@ -13,7 +13,7 @@ static void button_event_callback(
 	const uint16_t button,
 	const uint8_t state)
 {
-	printf("Received button event : button = %x ~ '%s', state = %u\n", 
+	printf("Received button event : button : 0x%x ~ '%s', state = %u\n", 
 		button, c24_surface_get_button_name(button), state);
 
 	const unsigned int track = 
