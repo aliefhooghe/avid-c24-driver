@@ -49,7 +49,6 @@ int c24_surface_find(
 {
 	socklen_t recv_addr_len = sizeof(struct sockaddr_ll);
 	struct c24_frame recv_frame;
-	int ret;
 
 	///* non-blocking so we can return after a few retrys */
 	//int flags = fcntl(surface->sock, F_GETFL, 0);
@@ -104,7 +103,7 @@ int c24_surface_find(
 		surface->address.sll_addr[4],
 		surface->address.sll_addr[5]);
 
-	return ret;
+	return SUCCESS;
 }
 
 int c24_surface_disconnect(
