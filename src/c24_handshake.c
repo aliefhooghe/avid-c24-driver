@@ -81,7 +81,7 @@ int c24_surface_find(
 			DEBUG_PRINT("Received ReAnnounce frame\n");
 			read_announce_frame(surface, &recv_frame);
 
-			ret = c24_surface_ping(surface, 1000000); // TODO mieux
+			c24_surface_ping(surface, 1000000); // TODO mieux
 			//found = 1;
 			break;
 		}
