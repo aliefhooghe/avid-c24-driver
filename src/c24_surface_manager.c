@@ -10,7 +10,6 @@
 #include "utility.h"
 #include "log.h"
 
-
 #define MINIMUM_REQUEST_INTERVAL_USEC 5000	//  The minimum time that should elapse between 2 request
 #define ACKNOWLEDGMENT_TIMEOUT_USEC 750000
 #define MAXIMUM_BLOCK_COUNT_PER_FRAME 16
