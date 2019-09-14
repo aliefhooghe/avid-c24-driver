@@ -94,7 +94,7 @@ int c24_acknowledgment_receive(
 	struct sockaddr_ll recv_addr;
 	struct c24_frame frame;
 
-	DEBUG_PRINT("Waiting acknowledgment...\n");
+	VERBOSE_PRINT("Waiting acknowledgment...\n");
 
 	do {
 		int size = recvfrom_with_timeout(surface->sock, &frame, sizeof(frame),
@@ -111,11 +111,11 @@ int c24_acknowledgment_receive(
 			ntohs(frame.header.acknowledgment_number);
 
 	if (surface->sequence_number == acknowledgment_number) {
-		DEBUG_PRINT("Acknowledgment Ok\n");
+		VERBOSE_PRINT("Acknowledgment Ok\n");
 		return 0;
 	}
 	else {
-		DEBUG_PRINT("Acknowledgment error : bad acknowledgment number (%02x != %02x)\n",
+		VERBOSE_PRINT("Acknowledgment error : bad acknowledgment number (%02x != %02x)\n",
 				acknowledgment_number, surface->sequence_number);
 		return WRONG_CHECKSUM_ERROR;
 	}
@@ -143,7 +143,7 @@ int c24_surface_ping(
 	{ .tv_sec = 0, .tv_usec = usec_timeout };
 	struct c24_frame req;
 
-	DEBUG_PRINT("Pinging surface\n");
+	VERBOSE_PRINT("Pinging surface\n");
 
 	c24_frame_init(&req);
 	c24_frame_send(surface, &req);

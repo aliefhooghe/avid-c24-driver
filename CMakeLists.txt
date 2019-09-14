@@ -2,6 +2,7 @@
 cmake_minimum_required (VERSION 3.1)
 
 project(digidesign_c24_driver LANGUAGES C)
+option(VERBOSE "Enable Verbose mode" OFF)
 
 set(C24_DRIVER_SRC
 	src/c24_frame.c
@@ -29,6 +30,10 @@ set(C24_DRIVER_SRC
 
 add_library(c24_driver STATIC ${C24_DRIVER_SRC})
 target_include_directories(c24_driver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+if (VERBOSE)
+	target_compile_definitions(c24_driver PUBLIC "VERBOSE")
+endif()
 
 add_executable(exemple src/exemple.c)
 target_link_libraries(exemple c24_driver pthread m) # m = math is only needed because of the sin function

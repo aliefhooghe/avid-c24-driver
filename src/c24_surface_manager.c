@@ -93,7 +93,7 @@ static int handle_table_request_block(
 			const uint8_t track_id = buffer[2];
 			const uint16_t value = 4 * ((uint16_t)buffer[5]) + buffer[4];
 
-			DEBUG_PRINT("Slider Move request TrackId = %u, value = %u\n",
+			VERBOSE_PRINT("Slider Move request TrackId = %u, value = %u\n",
 					track_id, value);
 
 			// Validate the slider move
@@ -113,7 +113,7 @@ static int handle_table_request_block(
 			const uint16_t button = ntohs(*(uint16_t*) (buffer + 2));
 			const uint8_t state = buffer[4];
 
-			DEBUG_PRINT("Button Press request : button = %04x, state = %u\n",
+			VERBOSE_PRINT("Button Press request : button = %04x, state = %u\n",
 					button, state);
 
 			if (surface->button_callback != NULL)
@@ -127,7 +127,7 @@ static int handle_table_request_block(
 			const uint16_t knob_id = ntohs(*(uint16_t*) (buffer + 2));
 			const uint8_t state = buffer[4];
 
-			DEBUG_PRINT("Knob %04x rotate %u\n", knob_id, state);
+			VERBOSE_PRINT("Knob %04x rotate %u\n", knob_id, state);
 
 			if (surface->knob_callback != NULL)
 				surface->knob_callback(surface->user_data, knob_id, state);
@@ -170,15 +170,19 @@ static int handle_table_request(struct c24_surface_t *surface)
 
 	if (recv_frame.header.frame_type == C24_FRAME_TYPE_ANNOUNCE)
 	{
-		DEBUG_PRINT("Try to reconnect\n");
+		VERBOSE_PRINT("Try to reconnect : ");
 		const int ret =  c24_surface_connect(surface);
 
-		if (ret == 0 && surface->reconnection_callback != NULL) {
-			DEBUG_PRINT("Reconected\n");
-			surface->reconnection_callback(surface->user_data);
+		if (ret == 0) { 
+			if (surface->reconnection_callback != NULL)
+				surface->reconnection_callback(surface->user_data);
+			VERBOSE_PRINT("Ok\n");
+		}
+		else {
+			VERBOSE_PRINT("FAIL\n");
 		}
 
-		return ret;
+			return ret;
 	}
 	else if (recv_frame.header.frame_type == C24_FRAME_TYPE_REANNOUNCE)
 	{
@@ -250,7 +254,7 @@ static int send_some_table_requests(
 			c24_frame_add_request(&frame, &request);
 		}
 
-		DEBUG_PRINT("Send a %u-block frame\n", send_count);
+		VERBOSE_PRINT("Send a %u-block frame\n", send_count);
 		// Send Frame
 		return c24_acknowledged_send_frame(
 				surface, 
@@ -300,7 +304,7 @@ static int apply_some_vumeter_mask_requests(
 
 		if (mask_change_count > 0)
 		{
-			DEBUG_PRINT("Send a vumeter frame with %u modifications\n", send_count);
+			VERBOSE_PRINT("Send a vumeter frame with %u modifications\n", send_count);
 			return c24_surface_update_vumeter_mask(surface); // No Acknowledgment needed here
 		}
 	}
@@ -339,7 +343,7 @@ void c24_surface_manager(struct c24_surface_t *surface)
 	{ .tv_sec = 0, .tv_usec =
 	MINIMUM_REQUEST_INTERVAL_USEC };
 
-	DEBUG_PRINT("Entering C24 Table Manager Loop\n");
+	VERBOSE_PRINT("Entering C24 Table Manager Loop\n");
 
 	while (surface->surface_manager_running)
 	{

@@ -15,14 +15,14 @@ int c24_surface_connect(struct c24_surface_t *surface)
 	c24_frame_init(&frame);
 	frame.header.frame_type = C24_FRAME_TYPE_BROADCAST_TAKEOVER;
 	
-	DEBUG_PRINT("Sending broadcast take over\n");
+	VERBOSE_PRINT("Sending broadcast take over\n");
 	c24_frame_broadcast_send(surface, &frame); // no acknowledgment (broadcast)
 			
 	// Initialize and send table TakeOver frame
 	c24_frame_init(&frame);
 	frame.header.frame_type = C24_FRAME_TYPE_SURFACE_TAKEOVER;
 	
-	DEBUG_PRINT("Sending surface take over\n");
+	VERBOSE_PRINT("Sending surface take over\n");
 	c24_frame_send(surface, &frame);
 	
 	return c24_acknowledgment_receive(surface, NULL); // unlimited timeout
@@ -57,7 +57,7 @@ int c24_surface_find(
 			return size;
 		
 		if (recv_frame.header.frame_type == C24_FRAME_TYPE_ANNOUNCE) {
-			DEBUG_PRINT("Received announce frame\n");
+			VERBOSE_PRINT("Received announce frame\n");
 			read_announce_frame(surface, &recv_frame);
 			
 			const int ret = c24_surface_connect(surface);
@@ -68,7 +68,7 @@ int c24_surface_find(
 			break;
 		}
 		else if (recv_frame.header.frame_type == C24_FRAME_TYPE_REANNOUNCE) {
-			DEBUG_PRINT("Received ReAnnounce frame\n");
+			VERBOSE_PRINT("Received ReAnnounce frame\n");
 			read_announce_frame(surface, &recv_frame);
 
 			ret = c24_surface_ping(surface, 1000000); // TODO mieux

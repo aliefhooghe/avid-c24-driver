@@ -6,11 +6,10 @@
 #define LOG_PRINT(...) printf(__VA_ARGS__)
 
 //#define DEBUG
-
-#ifdef DEBUG
-#define DEBUG_PRINT(...) printf("debug-info : " __VA_ARGS__)
+#ifdef VERBOSE
+#define VERBOSE_PRINT(...) printf("debug-info : " __VA_ARGS__)
 #else
-#define DEBUG_PRINT(...)
+#define VERBOSE_PRINT(...)
 #endif
 
 #endif
