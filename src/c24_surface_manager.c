@@ -89,6 +89,8 @@ static int handle_table_request_block(
 {
 	const uint16_t operation = ntohs(*(uint16_t*) buffer);
 
+	VERBOSE_PRINT("Processing block");
+
 	switch (operation)
 	{
 
@@ -146,7 +148,7 @@ static int handle_table_request_block(
 		break;
 
 		default:
-			DEBUG_PRINT("BLOCK : Unknown Block opcode : %x\n", operation);
+			VERBOSE_PRINT("Unknown Block opcode : %x\n", operation);
 			return C24_UNKNOW_REQUEST_BLOCK;
 		break;
 	}
@@ -172,13 +174,13 @@ static int handle_table_request(struct c24_surface_t *surface)
 	if (hw_adress_cmp(surface->address.sll_addr, recv_addr.sll_addr) != 0)
 		return SUCCESS;	//	This is not an error
 
-	//	Size check (ensure that packet is complete)
+	VERBOSE_PRINT("Processing a frame received from C24");
 
+	//	Size check (ensure that packet is complete)
 	if (size < ntohs(recv_frame.header.size))
 		return C24_INCOMPLETE_FRAME;
 
 	// Checksum check
-
 	const uint16_t recv_checksum = recv_frame.header.blocks_checksum;
 	c24_frame_compute_checksum(&recv_frame);
 
@@ -188,23 +190,23 @@ static int handle_table_request(struct c24_surface_t *surface)
 
 	if (recv_frame.header.frame_type == C24_FRAME_TYPE_ANNOUNCE)
 	{
-		VERBOSE_PRINT("Try to reconnect : ");
+		VERBOSE_PRINT("C24 send ANNOUNCE, Try to reconnect ...\n");
 		const int ret =  c24_surface_connect(surface);
 
 		if (ret == 0) { 
 			if (surface->reconnection_callback != NULL)
 				surface->reconnection_callback(surface->user_data);
-			VERBOSE_PRINT("Ok\n");
+			VERBOSE_PRINT("reconnection : Ok\n");
 		}
 		else {
-			VERBOSE_PRINT("FAIL\n");
+			VERBOSE_PRINT("reconnection : FAIL\n");
 		}
 
 			return ret;
 	}
 	else if (recv_frame.header.frame_type == C24_FRAME_TYPE_REANNOUNCE)
 	{
-		DEBUG_PRINT("Reannounce received, pinging\n");
+		VERBOSE_PRINT("C24 send REANNOUNCE, pinging\n");
 		return c24_surface_ping(surface, ACKNOWLEDGMENT_TIMEOUT_USEC);
 	}
 	else if(recv_frame.header.frame_type != C24_FRAME_TYPE_DEFAULT)
@@ -225,7 +227,7 @@ static int handle_table_request(struct c24_surface_t *surface)
 			- sizeof(struct c24_frame_header);
 	unsigned int offset = 0;
 
-	DEBUG_PRINT("Received a %u block request frame, reading blocks..\n", block_count);
+	VERBOSE_PRINT("Received a %u block request frame, reading blocks..\n", block_count);
 
 	for (unsigned int i = 0; i < block_count; i++)
 	{
@@ -349,18 +351,27 @@ static void handle_error(
 	switch (error)
 	{
 		case C24_TIMEOUT_REACHED:
-			LOG_PRINT("Trying to reconnect...\n");
+			LOG_PRINT("Timeout reached, trying to reconnect...\n");
 			c24_surface_find(surface, surface->reconnection_callback);
 			break;
 
 		case SUCCESS:
-		case C24_WRONG_CHECKSUM:
-		case C24_INCOMPLETE_FRAME:
-		case C24_UNKNOW_REQUEST_BLOCK:
-			break;	//	These are not fatal errors
+			break;
 
-		default:	
-			LOG_PRINT("This was a Fatal Error\n");
+		case C24_WRONG_CHECKSUM:
+			LOG_PRINT("Invalid checksum received\n");
+			break;
+
+		case C24_INCOMPLETE_FRAME:
+			LOG_PRINT("Imcomplet frame received\n");
+			break;
+
+		case C24_UNKNOW_REQUEST_BLOCK:
+			LOG_PRINT("Unknown request block opcode\n");
+			break;
+
+		default:
+			LOG_PRINT("This was a Fatal Error : %d\n", error);
 			exit(1);
 			break;
 	}
@@ -377,7 +388,6 @@ void c24_surface_manager(struct c24_surface_t *surface)
 
 	while (surface->surface_manager_running)
 	{
-
 		//	Wait for the socket to be ready to be read,
 		//	or the delay between two request to be reached
 

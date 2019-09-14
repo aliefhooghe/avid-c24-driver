@@ -114,7 +114,7 @@ int c24_surface_close(struct c24_surface_t *surface)
 		const int err = c24_surface_disconnect(surface, 500000); // TODO mieu
 		
 		if (err != SUCCESS)
-			DEBUG_PRINT("Warning : disconnect error : %s\n", c24_strerror(err));
+			VERBOSE_PRINT("Warning : disconnect error : %s\n", c24_strerror(err));
 
 		close(surface->sock);
 

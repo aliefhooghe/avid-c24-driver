@@ -40,9 +40,4 @@ if (VERBOSE)
 endif()
 
 add_executable(exemple src/exemple.c)
-<<<<<<< HEAD
 target_link_libraries(exemple c24_driver pthread m) # m = math is only needed because of the sin function
-=======
-target_link_libraries(exemple c24_driver pthread m) # m = math is only needed because of the sin function
-
->>>>>>> 39af8cc12d88f04ebd45281c1689283620aad568
