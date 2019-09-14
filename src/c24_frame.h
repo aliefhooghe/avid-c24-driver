@@ -6,10 +6,6 @@
 
 #define C24_FRAME_MAX_PLAYLOAD_SIZE 512 
 
-#define WRONG_CHECKSUM_ERROR  	(-2)
-#define TIMEOUT_REACHED_ERROR 	(-3)
-#define INCOMPLETE_FRAME_ERROR 	(-4)
-
 struct c24_frame_header
 {
 	uint16_t size;

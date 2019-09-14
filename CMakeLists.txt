@@ -5,6 +5,10 @@ project(digidesign_c24_driver LANGUAGES C)
 option(VERBOSE "Enable Verbose mode" OFF)
 
 set(C24_DRIVER_SRC
+  src/c24_controls.h
+  src/c24_controls.c
+  src/c24_error.c
+	src/c24_error.h
 	src/c24_frame.c
 	src/c24_frame.h
 	src/c24_handshake.c
@@ -36,4 +40,9 @@ if (VERBOSE)
 endif()
 
 add_executable(exemple src/exemple.c)
+<<<<<<< HEAD
 target_link_libraries(exemple c24_driver pthread m) # m = math is only needed because of the sin function
+=======
+target_link_libraries(exemple c24_driver pthread m) # m = math is only needed because of the sin function
+
+>>>>>>> 39af8cc12d88f04ebd45281c1689283620aad568

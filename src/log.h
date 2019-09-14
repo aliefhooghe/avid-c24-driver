@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#define LOG_PRINT(...) printf(__VA_ARGS__)
+#define LOG_PRINT(...) printf("[C24 driver log]\t" __VA_ARGS__)
 
 //#define DEBUG
 #ifdef VERBOSE

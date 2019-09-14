@@ -1,12 +1,15 @@
 #include <sys/select.h>
 #include <string.h>
 
+#include "c24_error.h"
 #include "c24_frame.h"
 #include "c24_request.h"
 #include "c24_vu_meter_mask_request.h"
 #include "c24_handshake.h"
 #include "c24_surface_private_definitions.h"
+#include "utility.h"
 #include "log.h"
+
 
 #define MINIMUM_REQUEST_INTERVAL_USEC 5000	//  The minimum time that should elapse between 2 request
 #define ACKNOWLEDGMENT_TIMEOUT_USEC 750000
@@ -31,16 +34,17 @@ static int c24_acknowledged_send_frame(
 		const int send_err = c24_frame_send(surface, frame);
 		try_count++;
 
-		if (send_err < 0)
+		if (send_err != SUCCESS)
 			return send_err;
 
 		ack_err = c24_acknowledgment_receive(surface, &timeout);
-		if (ack_err == TIMEOUT_REACHED_ERROR) {
+		if (ack_err == C24_TIMEOUT_REACHED) {
 			LOG_PRINT("Warning : Acknowledgment timeout reached\n");
 
 			if (try_count >= max_try_count) {
-				LOG_PRINT("Warning : c24 surface was lost, trying to recconect...\n");
-				c24_surface_find(surface, surface->reconnection_callback);
+				LOG_PRINT("Warning : c24 surface was lost, trying to reconnect...\n");
+				const int err = 
+					c24_surface_find(surface, surface->reconnection_callback);
 			}
 		
 			//	reset ack timeout
@@ -49,7 +53,7 @@ static int c24_acknowledged_send_frame(
 		}
 
 
-	} while (ack_err == TIMEOUT_REACHED_ERROR);
+	} while (ack_err == C24_TIMEOUT_REACHED);
 
 	return ack_err;
 }
@@ -78,10 +82,10 @@ static int send_slider_pos_feedback(
 		MAX_SEND_TRY_COUNT);
 }
 
-// Return the size of read block, 0 if block type is unknown, negative value if error
 static int handle_table_request_block(
 	struct c24_surface_t *surface,
-	const uint8_t *buffer)
+	const uint8_t *buffer,
+	size_t *block_size)
 {
 	const uint16_t operation = ntohs(*(uint16_t*) buffer);
 
@@ -99,45 +103,55 @@ static int handle_table_request_block(
 			// Validate the slider move
 			const int err = send_slider_pos_feedback(surface, track_id, value);
 
-			if (err < 0)
+			if (err != SUCCESS)
 				return err;
 
-			if (surface->slider_callback != NULL)
+			if (surface->slider_callback != NULL && track_id < C24_TRACK_COUNT)
 				surface->slider_callback(surface->user_data, track_id, value);
 
-			return 6;
+			*block_size = 6;
 		}
+		break;
 
 		case C24_BLOCK_OPERATION_BUTTON_EVENT:
 		{
-			const uint16_t button = ntohs(*(uint16_t*) (buffer + 2));
+			const uint16_t button = 
+				c24_button_raw_id_to_id(
+					ntohs(*(uint16_t*) (buffer + 2)));
 			const uint8_t state = buffer[4];
 
 			VERBOSE_PRINT("Button Press request : button = %04x, state = %u\n",
 					button, state);
 
-			if (surface->button_callback != NULL)
+			if (surface->button_callback != NULL && button < C24_BUTTON_COUNT)
 				surface->button_callback(surface->user_data, button, state);
 
-			return 5;
+			*block_size = 5;
 		}
+		break;
 
 		case C24_BLOCK_OPERATION_KNOB_ROTATE:
 		{
-			const uint16_t knob_id = ntohs(*(uint16_t*) (buffer + 2));
+			const uint16_t knob_id = 
+				c24_knob_raw_id_to_id(ntohs(*(uint16_t*) (buffer + 2)));
 			const uint8_t state = buffer[4];
 
 			VERBOSE_PRINT("Knob %04x rotate %u\n", knob_id, state);
 
-			if (surface->knob_callback != NULL)
+			if (surface->knob_callback != NULL && knob_id < C24_KNOB_COUNT)
 				surface->knob_callback(surface->user_data, knob_id, state);
 
-			return 5;
+			*block_size = 5;
 		}
+		break;
 
 		default:
-			return 0;
+			DEBUG_PRINT("BLOCK : Unknown Block opcode : %x\n", operation);
+			return C24_UNKNOW_REQUEST_BLOCK;
+		break;
 	}
+
+	return SUCCESS;
 }
 
 static int handle_table_request(struct c24_surface_t *surface)
@@ -152,12 +166,16 @@ static int handle_table_request(struct c24_surface_t *surface)
 			(struct sockaddr*) &recv_addr, &recv_addr_len);
 
 	if (size < 0)
-		return -1;
+		return errno;
+
+	//	Ensure that packet was from the surface we are dealing with
+	if (hw_adress_cmp(surface->address.sll_addr, recv_addr.sll_addr) != 0)
+		return SUCCESS;	//	This is not an error
 
 	//	Size check (ensure that packet is complete)
 
 	if (size < ntohs(recv_frame.header.size))
-		return INCOMPLETE_FRAME_ERROR;
+		return C24_INCOMPLETE_FRAME;
 
 	// Checksum check
 
@@ -165,7 +183,7 @@ static int handle_table_request(struct c24_surface_t *surface)
 	c24_frame_compute_checksum(&recv_frame);
 
 	if (recv_checksum != recv_frame.header.blocks_checksum)
-		return WRONG_CHECKSUM_ERROR;
+		return C24_WRONG_CHECKSUM;
 
 
 	if (recv_frame.header.frame_type == C24_FRAME_TYPE_ANNOUNCE)
@@ -186,13 +204,14 @@ static int handle_table_request(struct c24_surface_t *surface)
 	}
 	else if (recv_frame.header.frame_type == C24_FRAME_TYPE_REANNOUNCE)
 	{
+		DEBUG_PRINT("Reannounce received, pinging\n");
 		return c24_surface_ping(surface, ACKNOWLEDGMENT_TIMEOUT_USEC);
 	}
 	else if(recv_frame.header.frame_type != C24_FRAME_TYPE_DEFAULT)
 	{
 		LOG_PRINT("Warning : Unable to do something with frame type %x\n",
 				recv_frame.header.frame_type);
-		return 0; // not an error
+		return SUCCESS; // not an error
 	}
 
 	// Send acknowledgment (needed only for default frame
@@ -201,29 +220,37 @@ static int handle_table_request(struct c24_surface_t *surface)
 
 	// Handle blocks
 
-	const unsigned int block_count = ntohl(recv_frame.header.block_count);
+	const unsigned int block_count = recv_frame.header.block_count;
 	const unsigned int playload_size = ntohs(recv_frame.header.size)
 			- sizeof(struct c24_frame_header);
 	unsigned int offset = 0;
 
+	DEBUG_PRINT("Received a %u block request frame, reading blocks..\n", block_count);
+
 	for (unsigned int i = 0; i < block_count; i++)
 	{
-		const int block_size = handle_table_request_block(surface,
-				recv_frame.playload + offset);
+		size_t block_size;
+		const int err = 
+			handle_table_request_block(surface,
+				recv_frame.playload + offset, &block_size);
 
-		if (block_size == 0)		//	Unknown block type
-			break;
-		else if (block_size < 0)	//	Error
-			return block_size;
-		else
+		if (err == SUCCESS) {
 			offset += block_size;
+		}
+		else if (err == C24_UNKNOW_REQUEST_BLOCK) {	//	not a fatal error
+			break;
+		}
+		else {
+			return err;
+		}
 	}
 
 	// Check coherence
-	if (offset == playload_size)	//	all blocks where matched
-		return 0;
-	else
-		return -1;
+	if (offset != playload_size)	//	Not all blocks where matched
+		LOG_PRINT("Warning : Some surface requests were not understood (%u bytes were not handled)\n", 
+			playload_size - offset);
+
+	return SUCCESS;
 }
 
 static int send_some_table_requests(
@@ -262,8 +289,9 @@ static int send_some_table_requests(
 				usec_ack_timeout,
 				MAX_SEND_TRY_COUNT);
 	}
+	// else ping ?
 
-	return 0;
+	return SUCCESS;
 }
 
 static int apply_some_vumeter_mask_requests(
@@ -309,28 +337,30 @@ static int apply_some_vumeter_mask_requests(
 		}
 	}
 
-	return 0;
+	return SUCCESS;
 }
 
-static void handle_error(const int error)
+static void handle_error(
+	struct c24_surface_t *surface,
+	const int error)
 {
+	printf("Warning : %s\n", c24_strerror(error));
 
 	switch (error)
 	{
-		case TIMEOUT_REACHED_ERROR:
-			LOG_PRINT("Warning : acknowledgment timeout reached\n");
+		case C24_TIMEOUT_REACHED:
+			LOG_PRINT("Trying to reconnect...\n");
+			c24_surface_find(surface, surface->reconnection_callback);
 			break;
 
-		case WRONG_CHECKSUM_ERROR:
-			LOG_PRINT("Warning : received invalid checksum\n");
-			break;
+		case SUCCESS:
+		case C24_WRONG_CHECKSUM:
+		case C24_INCOMPLETE_FRAME:
+		case C24_UNKNOW_REQUEST_BLOCK:
+			break;	//	These are not fatal errors
 
-		case INCOMPLETE_FRAME_ERROR:
-			LOG_PRINT("Warning : received incomplete frame\n");
-			break;
-
-		default:
-			LOG_PRINT("Fatal Error : %s\n", strerror(error));
+		default:	
+			LOG_PRINT("This was a Fatal Error\n");
 			exit(1);
 			break;
 	}
@@ -359,8 +389,7 @@ void c24_surface_manager(struct c24_surface_t *surface)
 
 		if (select_ret < 0)
 		{
-			perror("fatal error select ");
-			exit(0);
+			handle_error(surface, errno);
 		}
 		else if (select_ret == 0)
 		{
@@ -369,15 +398,15 @@ void c24_surface_manager(struct c24_surface_t *surface)
 			int err = apply_some_vumeter_mask_requests(surface,
 					MAXIMUM_VUMETER_MASK_UPDATE_PER_FRAME);
 
-			if (err < 0)
-				handle_error(err);
+			if (err != SUCCESS)
+				handle_error(surface, err);
 
 			err = send_some_table_requests(surface,
 				MAXIMUM_BLOCK_COUNT_PER_FRAME,
 				ACKNOWLEDGMENT_TIMEOUT_USEC);
 
-			if (err < 0)
-				handle_error(err);
+			if (err != SUCCESS)
+				handle_error(surface, err);
 
 			// Reset the timer
 			socket_wait_timeout.tv_sec = 0;
@@ -389,8 +418,8 @@ void c24_surface_manager(struct c24_surface_t *surface)
 
 			const int err = handle_table_request(surface);
 
-			if (err < 0)
-				handle_error(err);
+			if (err != SUCCESS)
+				handle_error(surface, err);
 		}
 	}
 }

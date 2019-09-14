@@ -33,4 +33,12 @@ struct c24_surface_t
 	c24_reconnection_callback_t reconnection_callback;
 };
 
+//	Implemented in c24_controls.c
+
+uint16_t c24_button_id_to_raw_id(const uint16_t id);
+uint16_t c24_button_raw_id_to_id(const uint16_t raw_id);
+
+uint16_t c24_knob_id_to_raw_id(const uint16_t id);
+uint16_t c24_knob_raw_id_to_id(const uint16_t raw_id);
+
 #endif

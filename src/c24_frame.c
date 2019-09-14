@@ -3,6 +3,7 @@
 
 #include "c24_frame.h"
 #include "c24_request.h"
+#include "c24_error.h"
 #include "log.h"
 
 void c24_frame_init(struct c24_frame *frame)
@@ -21,14 +22,14 @@ int c24_frame_add_block(
 			- sizeof(struct c24_frame_header);
 
 	if (playload_size + block_size > C24_FRAME_MAX_PLAYLOAD_SIZE)
-		return -1;
+		return ENOBUFS;
 
 	memcpy(frame->playload + playload_size, block, block_size);
 
 	frame->header.size = htons(request_size + block_size);
 	frame->header.block_count++;
 
-	return 0;
+	return SUCCESS;
 }
 
 void c24_frame_compute_checksum(struct c24_frame *frame)
@@ -54,8 +55,13 @@ static int c24_frame_send_to(
 	surface->sequence_number++;
 	frame->header.sequence_number = htons(surface->sequence_number);
 
-	return sendto(surface->sock, frame, ntohs(frame->header.size), 0,
+	const int err = sendto(surface->sock, frame, ntohs(frame->header.size), 0,
 			(struct sockaddr*) addr, sizeof(struct sockaddr_ll));
+
+	if (err < 0)
+		return errno;
+	else
+		return SUCCESS;
 }
 
 
@@ -97,13 +103,13 @@ int c24_acknowledgment_receive(
 	VERBOSE_PRINT("Waiting acknowledgment...\n");
 
 	do {
-		int size = recvfrom_with_timeout(surface->sock, &frame, sizeof(frame),
-				&recv_addr, timeout);
+		size_t size;
+		int err = 
+			recvfrom_with_timeout(surface->sock, &frame, sizeof(frame),
+				&recv_addr, timeout, &size);
 
-		if (size == 0)
-			return TIMEOUT_REACHED_ERROR;
-		else if (size < 0)
-			return size;
+		if (err != SUCCESS)
+			return err;
 
 	} while (frame.header.frame_type != C24_FRAME_TYPE_ACKNOWLEDGMENT);
 
@@ -117,7 +123,7 @@ int c24_acknowledgment_receive(
 	else {
 		VERBOSE_PRINT("Acknowledgment error : bad acknowledgment number (%02x != %02x)\n",
 				acknowledgment_number, surface->sequence_number);
-		return WRONG_CHECKSUM_ERROR;
+		return C24_WRONG_CHECKSUM;
 	}
 }
 

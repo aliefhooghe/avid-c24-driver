@@ -16,6 +16,7 @@ int recvfrom_with_timeout(
 	void * const buffer,
 	const size_t len,
 	struct sockaddr_ll *addr,
-	struct timeval *timeout);
+	struct timeval *timeout,
+	size_t *size);
 
 #endif
